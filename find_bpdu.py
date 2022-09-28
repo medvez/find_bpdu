@@ -42,7 +42,8 @@ class CommandHandler:
 
     def print_result(self):
         for port, count in self.port_bpdu_counters.items():
-            print(f'interface {port} received {count}')
+            if count:
+                print(f'{port:30} - {count}')
 
     def run(self):
         self.parse_arguments()
