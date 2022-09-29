@@ -40,8 +40,8 @@ class CommandHandler:
         self.port_counters = switch()
 
     def print_result(self):
-        for port, counter in self.port_counters.items():
-            print(f'{port:30} - {counter}')
+        for port, counter in sorted(self.port_counters.items(), key=lambda item: item[0]):
+            print(f'{port:25} - {counter}')
 
     def run(self):
         self.parse_arguments()
