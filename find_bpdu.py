@@ -5,7 +5,7 @@ from getpass import getpass
 from netmiko import ConnectHandler, NetmikoTimeoutException, NetmikoAuthenticationException
 
 
-CLI_COMMAND = 'show spanning-tree detail | i forwarding|BPDU'
+CLI_COMMAND = 'show spanning-tree detail | i forwarding|blocking|BPDU'
 PORT_REGEX_PATTERN = re.compile(r'^\d+ \((.+)\)')
 BPDU_REGEX_PATTERN = re.compile(r'^.+ received (\d+)$')
 
