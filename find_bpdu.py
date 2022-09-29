@@ -19,7 +19,7 @@ class CommandHandler:
 
     def __init__(self) -> None:
         self.host_address = ''
-        self.port_bpdu_counters = defaultdict(int)
+        self.port_counters = {}
         self.username = ''
         self.password = ''
 
@@ -35,15 +35,13 @@ class CommandHandler:
 
     def collect_counters(self) -> None:
         switch = Device(ip=self.host_address,
-                        result=self.port_bpdu_counters,
                         username=self.username,
                         password=self.password)
-        switch()
+        self.port_counters = switch()
 
     def print_result(self):
-        for port, count in self.port_bpdu_counters.items():
-            if count:
-                print(f'{port:30} - {count}')
+        for port, counter in self.port_counters.items():
+            print(f'{port:30} - {counter}')
 
     def run(self):
         self.parse_arguments()
@@ -54,39 +52,40 @@ class CommandHandler:
 
 class Device:
     """
-    This is API to a device. It runs all needed commands to get BPDU counters from it and
-    paste collected data int provided dictionary.
+    This is API to a device. It runs all needed commands to get BPDU counters
+    from its STP active ports and returns ports and non-zero counters in dictionary.
     """
 
-    def __init__(self, ip: str, result: defaultdict, username: str, password: str) -> None:
+    def __init__(self, ip: str, username: str, password: str) -> None:
         self.device = {
             'device_type': 'cisco_ios',
             'host': ip,
             'username': username,
             'password': password
         }
-        self.result = result
         self.cli_command_result = []
 
     def execute_command(self) -> None:
         connection = ConnectHandler(**self.device)
-        self.cli_command_result = connection.send_command(CLI_COMMAND).split('\n')
+        self.cli_command_result = map(str.strip, connection.send_command(CLI_COMMAND).split('\n'))
 
-    def command_output_processing(self) -> None:
+    def command_output_processing(self) -> dict:
         _port = ''
-        _bpdu_count = 0
+        _counter = 0
+        _result = defaultdict(int)
         for line in self.cli_command_result:
-            line = line.strip().split(maxsplit=1)
+            line = line.split(maxsplit=1)
             match line:
                 case ['Port', rest]:
                     port_match = PORT_REGEX_PATTERN.match(rest)
                     _port = port_match.group(1)
                 case ['BPDU:', rest]:
                     bpdu_count_match = BPDU_REGEX_PATTERN.match(rest)
-                    _bpdu_count = int(bpdu_count_match.group(1))
-                    self.result[_port] += _bpdu_count
+                    _counter = int(bpdu_count_match.group(1))
+                    _result[_port] += _counter
+        return dict(filter(lambda port_counter: port_counter[1] > 0, _result.items()))
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> dict:
         try:
             self.execute_command()
         except NetmikoTimeoutException:
@@ -94,7 +93,7 @@ class Device:
         except NetmikoAuthenticationException:
             print(f"Device: {self.device['host']} - auth failed")
         else:
-            self.command_output_processing()
+            return self.command_output_processing()
 
 
 def main():
